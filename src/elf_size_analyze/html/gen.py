@@ -19,13 +19,20 @@ def generate_html_output(node_dict, title, custom_css=None):
     with open(JAVASCRIPT, encoding='utf-8') as f:
         javascript = f.read()
 
+    overall_size = 0
+    for x,y in node_dict.items():
+        overall_size = overall_size + y["cumulative_size"]
+
     def _print_children(node, level=0):
         nonlocal table_content
         for x, y in node.items():
+            size = y['cumulative_size']
+            percent = '%.2f' % (size / overall_size * 100) if overall_size > 0 else '-'
             table_content += f"""
             <tr class="collapsible level-{level}">
                 <td style='padding-left:{10*level}px;word-break:break-all;word-wrap:break-word'>{html.escape(x)}</td>
-                <td width='200px' align='right'>{y['cumulative_size']}</td>
+                <td width='200px' align='right'>{size}</td>
+                <td width='100px' align='right'>{percent}%</td>
             </tr>
     """
 
@@ -33,10 +40,6 @@ def generate_html_output(node_dict, title, custom_css=None):
                 _print_children(y["children"], level + 1)
 
     _print_children(node_dict)
-
-    overall_size = 0
-    for x,y in node_dict.items():
-        overall_size = overall_size + y["cumulative_size"]
 
     html_output = f"""
 <!DOCTYPE html>
@@ -62,6 +65,7 @@ def generate_html_output(node_dict, title, custom_css=None):
             <tr>
                 <td align="right"><b>Overall size in bytes</b></td>
                 <td align="right">{overall_size}</td>
+                <td align="right">100.00%</td>
             </tr>
         </table>
     </body>
