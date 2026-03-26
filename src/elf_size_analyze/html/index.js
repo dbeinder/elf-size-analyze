@@ -34,10 +34,18 @@ function buildTree() {
 
 function updateChildren(node, collapsed) {
   for (const child of node.children) {
-    // Remove this class because it is used for the visible element with collapsed children
-    child.element.classList.remove('collapsed');
     child.element.hidden = collapsed;
-    updateChildren(child, collapsed);
+    if (collapsed) {
+      // Hide all descendants recursively
+      child.element.classList.remove('collapsed');
+      updateChildren(child, true);
+    } else {
+      // Show direct children but keep their subtrees collapsed
+      if (child.children.length > 0) {
+        child.element.classList.add('collapsed');
+        updateChildren(child, true);
+      }
+    }
   }
 }
 
@@ -71,15 +79,24 @@ function getLevel(elem) {
   return undefined;
 }
 
+function expandAll(node) {
+  for (const child of node.children) {
+    child.element.classList.remove('collapsed');
+    child.element.hidden = false;
+    expandAll(child);
+  }
+}
+
 function collapseAtLevel(tree, level) {
-  updateChildren(tree, false);
+  expandAll(tree);
 
   const collapse = (node) => {
-    if (node.element && getLevel(node.element) == level) {
-      setCollapsed(node, true);
-    }
     for (const child of node.children) {
-      collapse(child, level);
+      if (child.element && getLevel(child.element) >= level) {
+        setCollapsed(child, true);
+      } else {
+        collapse(child);
+      }
     }
   }
 
@@ -96,7 +113,7 @@ function onLoaded() {
     more: () => (level = Math.max(level - 1, 0)),
     less: () => (level = Math.min(level + 1, max_level)),
     all: () => (level = 0),
-    none: () => (level = max_level),
+    none: () => (level = max_level + 1),
   };
 
   const buttons = document.getElementsByClassName('collapse-buttons')[0];

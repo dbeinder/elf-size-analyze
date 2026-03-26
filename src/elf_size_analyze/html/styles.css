@@ -32,7 +32,7 @@ tr.collapsed {
 }
 
 tr.collapsed td:first-child::after {
-    content: " …";
+    /* content: " …"; */
 }
 
 .collapse-buttons {
