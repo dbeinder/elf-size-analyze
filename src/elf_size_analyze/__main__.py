@@ -27,7 +27,9 @@ import sys
 from elf_size_analyze.argument_parser import parse_args
 from elf_size_analyze.section import Section
 from elf_size_analyze.symbol import (Symbol, add_fileinfo_to_symbols,
+                                     add_archive_info_to_symbols,
                                      demangle_symbol_names,
+                                     extract_archive_symbols,
                                      extract_elf_symbols_fileinfo)
 from elf_size_analyze.symbol_tree import SymbolsTreeByPath
 from elf_size_analyze.html.gen import generate_html_output
@@ -71,6 +73,11 @@ def main():
     symbols = Symbol.extract_elf_symbols_info(args.elf, get_exe('readelf'))
     fileinfo = extract_elf_symbols_fileinfo(args.elf, get_exe('nm'))
     add_fileinfo_to_symbols(fileinfo, symbols)
+
+    # apply static library origin info (before demangling for reliable name matching)
+    if args.static_lib:
+        archive_dict = extract_archive_symbols(args.static_lib, get_exe('nm'))
+        add_archive_info_to_symbols(archive_dict, symbols)
 
     # demangle only after fileinfo extraction!
     if not args.no_demangle:

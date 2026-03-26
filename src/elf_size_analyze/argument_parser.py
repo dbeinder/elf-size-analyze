@@ -48,6 +48,11 @@ sections must have ALLOC flag and: for RAM - have WRITE flag, for ROM - not have
     basic_group.add_argument('--path-mapping', nargs=2, action='append', default=[],
                              metavar=('PATH', 'REPLACEMENT'),
                              help='Replace given path with another in the output.')
+    basic_group.add_argument('--static-lib', action='append', default=[], metavar='ARCHIVE',
+                             help='path to a static library (.a) archive; '
+                             'symbols from this archive will be shown under '
+                             'archive/object pseudo-paths instead of "?". '
+                             'Can be specified multiple times.')
     basic_group.add_argument('-v', '--verbose', action='count',
                              help='increase verbosity, can be specified up to 3 times'
                              + ' (versobity levels: ERROR -> WARNING -> INFO -> DEBUG)')

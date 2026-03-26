@@ -195,6 +195,81 @@ def add_fileinfo_to_symbols(fileinfo_dict, symbols_list):
                             % symbol_name)
 
 
+def extract_archive_symbols(archive_files, nm_exe='nm'):
+    """
+    Run `nm --portability --print-file-name` on each archive file to extract
+    a mapping from symbol names to their origin (archive/object).
+
+    Returns dict: {symbol_name: "archive_path/object.o"}
+    When multiple archives define the same symbol, the first one wins.
+    """
+    archive_dict = {}
+
+    for archive_path in archive_files:
+        archive_path = os.path.abspath(archive_path)
+        if not os.path.isfile(archive_path):
+            log.warning('Archive file not found: %s' % archive_path)
+            continue
+
+        flags = ['--portability', '--print-file-name']
+        nm_proc = subprocess.Popen([nm_exe, *flags, archive_path],
+                                   stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                                   universal_newlines=True)
+
+        # nm output format: "archive_path[object.o]: symbol_name TYPE VALUE SIZE"
+        prefix = archive_path + '['
+
+        for line in nm_proc.stdout:
+            if not line.startswith(prefix):
+                continue
+            rest = line[len(prefix):]
+            # rest is "object.o]: NAME TYPE VALUE SIZE..."
+            bracket_idx = rest.find(']:')
+            if bracket_idx < 0:
+                continue
+            object_name = rest[:bracket_idx].strip()
+            symbol_part = rest[bracket_idx + 2:].strip()
+
+            # parse POSIX format: NAME TYPE VALUE SIZE
+            fields = symbol_part.split()
+            if len(fields) < 2:
+                continue
+            sym_name = fields[0]
+            sym_type = fields[1]
+
+            # skip undefined symbols
+            if sym_type == 'U':
+                continue
+
+            if sym_name not in archive_dict:
+                archive_dict[sym_name] = os.path.join(archive_path, object_name)
+            else:
+                archive_dict[sym_name] = os.path.join(archive_path, "?")
+
+        if nm_proc.wait(3) != 0:
+            log.warning('nm returned non-zero exit code for archive: %s' % archive_path)
+
+    log.info('Extracted %d symbols from %d archive(s)' % (len(archive_dict), len(archive_files)))
+    return archive_dict
+
+
+def add_archive_info_to_symbols(archive_dict, symbols_list):
+    """
+    For symbols that have no file info (file is None), look up the symbol name
+    in archive_dict and set the file to the pseudo-path if found.
+    """
+    matched = 0
+    for symbol in symbols_list:
+        if symbol.file is not None:
+            continue
+        if symbol.name in archive_dict:
+            symbol.file = archive_dict[symbol.name]
+            matched += 1
+            log.info('Matched orphan symbol "%s" to archive origin: %s'
+                     % (symbol.name, symbol.file))
+    log.info('Matched %d orphan symbol(s) to archive origins' % matched)
+
+
 def demangle_symbol_names(symbols, cppfilt_exe='c++filt'):
     """
     Use c++filt to demangle symbol names in-place.
